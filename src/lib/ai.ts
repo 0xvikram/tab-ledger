@@ -1,6 +1,6 @@
 import { initializeApp, type FirebaseApp } from "firebase/app";
 import { initializeAppCheck, ReCaptchaEnterpriseProvider } from "firebase/app-check";
-import { getAI, getGenerativeModel, GoogleAIBackend, InferenceMode, Schema, type GenerativeModel } from "firebase/ai";
+import { getAI, getGenerativeModel, GoogleAIBackend, InferenceMode, Schema, ThinkingLevel, type GenerativeModel } from "firebase/ai";
 import { ENTRY_SYSTEM, entrySchema, needsCloud, normaliseEntry, type ParsedEntry } from "./parse";
 import { normaliseNumbers } from "./numbers";
 import type { Source } from "./ledger";
@@ -50,7 +50,7 @@ function ai() {
 const inCloudParams = {
   model: "gemini-3.5-flash-lite",
   systemInstruction: ENTRY_SYSTEM,
-  generationConfig: { responseMimeType: "application/json", responseSchema: cloudSchema },
+  generationConfig: { responseMimeType: "application/json", responseSchema: cloudSchema, thinkingConfig: { thinkingLevel: ThinkingLevel.MINIMAL } },
 };
 
 function hybridFor(lang: LangCode): GenerativeModel {

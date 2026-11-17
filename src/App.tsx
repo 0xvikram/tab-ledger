@@ -5,7 +5,8 @@ import { canListen, listen, localSpeech, modelState, warmUp, type ModelState } f
 import { balances, customerKey, sourceShare, totalOwed, type CustomerBalance, type Entry, type EntryKind, type Source } from "./lib/ledger";
 import { formatMoney, toMinor } from "./lib/money";
 import { CURRENCIES, LANGS, guessShop, langOf, loadShop, storeShop, type Shop } from "./lib/locale";
-import { ParseError } from "./lib/parse";
+import { ParseError, type ParsedEntry } from "./lib/parse";
+import { preparePhoto, streamPage, type PageRead } from "./lib/page";
 import { removeEntry, saveEntry, watchEntries, watchUser } from "./lib/store";
 import "./App.css";
 
@@ -144,6 +145,7 @@ function Shell({ children, online, pending = 0, model, onSettings }: { children:
 function Ledger({ uid, entries, model, online }: { uid?: string; entries: Entry[] | null; model: ModelState; online: boolean }) {
   const [draft, setDraft] = useState<Draft | null>(null);
   const [open, setOpen] = useState<CustomerBalance | null>(null);
+  const [page, setPage] = useState<Blob | null>(null);
   const list = useMemo(() => (entries ? balances(entries) : []), [entries]);
   const owed = entries ? totalOwed(entries) : 0;
   const owing = list.filter((b) => b.owes > 0).length;
@@ -158,7 +160,21 @@ function Ledger({ uid, entries, model, online }: { uid?: string; entries: Entry[
         <p className="sub">{entries ? (owing ? `${owing} ${owing === 1 ? "person" : "people"} on credit` : "Nobody owes you right now") : "Opening your book"}</p>
       </section>
 
-      <Composer disabled={!uid} model={model} online={online} onDraft={setDraft} />
+      <Composer disabled={!uid} model={model} online={online} onDraft={setDraft} onPage={setPage} />
+
+      {page && uid ? (
+        <PageImport
+          photo={page}
+          online={online}
+          model={model}
+          onClose={() => setPage(null)}
+          onSave={(rows) => {
+            const now = Date.now();
+            rows.forEach((r, i) => void saveEntry(uid, { ...r, at: now + i }));
+            setPage(null);
+          }}
+        />
+      ) : null}
 
       {draft && uid ? (
         <Confirm
@@ -218,7 +234,8 @@ function Ledger({ uid, entries, model, online }: { uid?: string; entries: Entry[
   );
 }
 
-function Composer({ disabled, model, online, onDraft }: { disabled: boolean; model: ModelState; online: boolean; onDraft: (d: Draft) => void }) {
+function Composer({ disabled, model, online, onDraft, onPage }: { disabled: boolean; model: ModelState; online: boolean; onDraft: (d: Draft) => void; onPage: (b: Blob) => void }) {
+  const fileRef = useRef<HTMLInputElement>(null);
   const [text, setText] = useState("");
   const shop = useShop();
   const lang = langOf(shop.lang);
@@ -318,8 +335,165 @@ function Composer({ disabled, model, online, onDraft }: { disabled: boolean; mod
             ? `Say who took what, how much, and "${lang.credit}" or "${lang.paid}". Read on this device, free.`
             : `Say who took what, how much, and "${lang.credit}" or "${lang.paid}". Read in the cloud.`}
       </p>
+      <div className="page-tools">
+        <button type="button" className="ghost" disabled={disabled} onClick={() => fileRef.current?.click()}>
+          Import a paper page
+        </button>
+        <button
+          type="button"
+          className="link"
+          disabled={disabled}
+          onClick={async () => {
+            const r = await fetch("/samples/fiado-page.jpg");
+            onPage(await r.blob());
+          }}
+        >
+          Try a sample page
+        </button>
+        <input
+          ref={fileRef}
+          type="file"
+          accept="image/*"
+          capture="environment"
+          hidden
+          onChange={(e) => {
+            const f = e.target.files?.[0];
+            if (f) onPage(f);
+            e.target.value = "";
+          }}
+        />
+      </div>
       {error ? <p className="banner error">{error}</p> : null}
     </section>
+  );
+}
+
+type Row = Omit<Entry, "id" | "at">;
+
+function PageImport({ photo, online, model, onClose, onSave }: { photo: Blob; online: boolean; model: ModelState; onClose: () => void; onSave: (rows: Row[]) => void }) {
+  const money = useMoney();
+  const [img, setImg] = useState<{ base64: string; url: string } | null>(null);
+  const [read, setRead] = useState<PageRead | null>(null);
+  const [busy, setBusy] = useState<"device" | "cloud" | null>("device");
+  const [error, setError] = useState<string | null>(null);
+  const [keep, setKeep] = useState<boolean[]>([]);
+
+  const run = useRef(0);
+  const abort = useRef<AbortController | null>(null);
+
+  async function go(where: "auto" | "cloud", data = img) {
+    if (!data) return;
+    const id = ++run.current;
+    abort.current?.abort();
+    const ctl = new AbortController();
+    abort.current = ctl;
+    setError(null);
+    setRead(null);
+    setBusy(where === "cloud" || model !== "ready" ? "cloud" : "device");
+    try {
+      if (!online && (where === "cloud" || model !== "ready")) throw new Error("offline");
+      const r = await streamPage(
+        data.base64,
+        where,
+        (rows, source) => {
+          if (run.current !== id) return;
+          setBusy(source === "on_device" ? "device" : "cloud");
+          setRead({ entries: rows, skipped: 0, source, ms: 0 });
+          setKeep(rows.map(() => true));
+        },
+        ctl.signal,
+      );
+      if (run.current !== id) return;
+      setRead(r);
+      setKeep(r.entries.map(() => true));
+    } catch (e) {
+      if (run.current !== id) return;
+      setError(
+        (e as Error).message === "offline"
+          ? "Reading a page needs on-device AI or signal. Try again when you have one."
+          : e instanceof ParseError
+            ? "Couldn't find entries on that page. Try the cloud, or a sharper photo."
+            : "Couldn't read that page. Try the cloud, or a sharper photo.",
+      );
+    } finally {
+      if (run.current === id) setBusy(null);
+    }
+  }
+
+  useEffect(() => {
+    let live = true;
+    preparePhoto(photo)
+      .then((p) => {
+        if (!live) return;
+        setImg(p);
+        void go("auto", p);
+      })
+      .catch(() => setError("That file is not a photo Tab can open."));
+    return () => {
+      live = false;
+      abort.current?.abort();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [photo]);
+
+  const chosen = read ? read.entries.filter((_, i) => keep[i]) : [];
+  const toRow = (e: ParsedEntry): Row => ({ ...e, said: "From a paper page", source: read!.source });
+
+  return (
+    <div className="sheet-back" onClick={onClose}>
+      <section className="sheet import" onClick={(e) => e.stopPropagation()} aria-label="Import a paper page">
+        <header>
+          <div>
+            <h2>Import a paper page</h2>
+            <p className="muted">
+              {busy === "device"
+                ? `Reading on this device, free and private… ${read?.entries.length ? `${read.entries.length} so far` : ""}`
+                : busy === "cloud"
+                  ? `Reading in the cloud… ${read?.entries.length ? `${read.entries.length} so far` : ""}`
+                  : read
+                    ? `${read.entries.length} entries found · ${read.source === "on_device" ? "read on this device, free" : "read in the cloud"} · ${(read.ms / 1000).toFixed(1)} s`
+                    : ""}
+            </p>
+          </div>
+          <button className="ghost" onClick={onClose}>Close</button>
+        </header>
+        <div className="import-body">
+          {img ? <img src={img.url} alt="The page you imported" className={busy ? "scanning" : ""} /> : null}
+          <div>
+            {error ? <p className="banner error">{error}</p> : null}
+            {read && read.entries.length ? (
+              <ul className="found">
+                {read.entries.map((e, i) => (
+                  <li key={i}>
+                    <label>
+                      <input type="checkbox" checked={keep[i] ?? false} onChange={() => setKeep(keep.map((k, j) => (j === i ? !k : k)))} />
+                      <span className="who">{e.customer}</span>
+                      <span className="what">{e.kind === "payment" ? "Paid back" : e.items || "Credit"}</span>
+                      <span className={`amt ${e.kind}`}>{e.kind === "credit" ? "+" : "−"}{money(e.amount)}</span>
+                    </label>
+                  </li>
+                ))}
+              </ul>
+            ) : null}
+            {read?.skipped ? <p className="muted small">{read.skipped} unclear lines were left out.</p> : null}
+            <div className="import-actions">
+              {busy === "device" ? (
+                <button className="ghost" onClick={() => go("cloud")} disabled={!online}>
+                  Faster: read it in the cloud
+                </button>
+              ) : read && read.source === "on_device" && !busy ? (
+                <button className="ghost" onClick={() => go("cloud")} disabled={!online}>
+                  Not right? Read it in the cloud
+                </button>
+              ) : null}
+              <button className="primary" disabled={!chosen.length || !!busy} onClick={() => onSave(chosen.map(toRow))}>
+                Add {chosen.length || ""} {chosen.length === 1 ? "entry" : "entries"}
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
   );
 }
 

@@ -94,3 +94,22 @@
 .primary.wide { height: 52px; width: 100%; font-size: 17px; }
 button.chip { cursor: pointer; }
 .composer .hint { margin: 10px 2px 0; }
+
+.page-tools { display: flex; align-items: center; gap: 12px; margin-top: 10px; flex-wrap: wrap; }
+.link { border: 0; background: none; padding: 0; color: var(--red-ink); text-decoration: underline; text-underline-offset: 3px; font-size: 14px; }
+.muted { color: var(--muted); margin: 2px 0 0; font-size: 14px; }
+.small { font-size: 13px; }
+.sheet.import { max-height: 92dvh; }
+.import-body { display: grid; gap: 14px; margin-top: 12px; }
+.import-body img { width: 100%; max-height: 300px; object-fit: contain; border-radius: 10px; background: var(--paper); border: 1px solid var(--line); }
+.import-body img.scanning { animation: scan 1.4s ease-in-out infinite; }
+@keyframes scan { 50% { opacity: 0.55; } }
+.found { list-style: none; margin: 0; padding: 0; }
+.found li { border-top: 1px solid var(--line); }
+.found label { display: grid; grid-template-columns: auto 1fr auto; grid-template-areas: "cb who amt" "cb what amt"; gap: 0 10px; align-items: center; padding: 10px 2px; cursor: pointer; }
+.found input { grid-area: cb; width: 20px; height: 20px; accent-color: var(--red); }
+.found .who { grid-area: who; font-weight: 600; }
+.found .what { grid-area: what; font-size: 13px; color: var(--muted); }
+.found .amt { grid-area: amt; }
+.import-actions { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; margin-top: 12px; }
+@media (min-width: 640px) { .import-body { grid-template-columns: 220px 1fr; } .import-body img { max-height: 420px; } }

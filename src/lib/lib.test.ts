@@ -94,3 +94,37 @@ describe("spoken numbers leave plain English alone", () => {
     expect(normaliseNumbers("Ramesh paid so far 500")).toBe("Ramesh paid so far 500");
   });
 });
+
+import { completeObjects, parsePage } from "./page";
+
+describe("paper page import", () => {
+  it("keeps good lines and counts the bad ones", () => {
+    const r = parsePage(
+      JSON.stringify({
+        entries: [
+          { customer: "lupe", kind: "credit", amount: 60, items: "tortilla" },
+          { customer: "", kind: "credit", amount: 10, items: "" },
+          { customer: "Juan", kind: "payment", amount: "100", items: "x" },
+        ],
+      }),
+    );
+    expect(r.entries.map((e) => [e.customer, e.kind, e.amount])).toEqual([
+      ["Lupe", "credit", 6000],
+      ["Juan", "payment", 10000],
+    ]);
+    expect(r.skipped).toBe(1);
+  });
+  it("accepts a bare array", () => {
+    expect(parsePage('[{"customer":"A","kind":"credit","amount":5,"items":""}]').entries).toHaveLength(1);
+  });
+});
+
+describe("streamed page rows", () => {
+  it("returns only finished objects from a partial answer", () => {
+    const partial = '{"entries":[{"customer":"Lupe","kind":"credit","amount":85,"items":"a, {b}"},{"customer":"Chu';
+    expect(completeObjects(partial)).toEqual(['{"customer":"Lupe","kind":"credit","amount":85,"items":"a, {b}"}']);
+  });
+  it("handles escaped quotes", () => {
+    expect(completeObjects('[{"customer":"Don \\"Chuy\\"","kind":"credit","amount":4,"items":""}]')).toHaveLength(1);
+  });
+});
