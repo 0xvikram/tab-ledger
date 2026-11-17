@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Khata spike: on-device parse</title>
+<style>
+  body { font: 15px/1.5 system-ui, sans-serif; max-width: 980px; margin: 24px auto; padding: 0 16px; color: #1d1b16; background: #faf8f3; }
+  button { font: inherit; padding: 8px 14px; margin-right: 8px; cursor: pointer; }
+  table { border-collapse: collapse; width: 100%; margin-top: 16px; font-size: 13px; }
+  td, th { border: 1px solid #ddd6c8; padding: 6px 8px; vertical-align: top; text-align: left; }
+  .ok { background: #e5f4e4; } .bad { background: #fbebeb; }
+  #status { margin: 12px 0; font-weight: 600; }
+</style>
+</head>
+<body>
+<h1>Khata spike: can Gemini Nano turn a spoken entry into a ledger row?</h1>
+<p>Click <b>Download model</b> once (Chrome downloads it in the background, a few GB, one time). Then click <b>Run tests</b>.</p>
+<button id="dl">Download model</button><button id="run">Run tests</button>
+<div id="status">Checking…</div>
+<table><thead><tr><th>Said</th><th>Expected</th><th>Got</th><th>ms</th></tr></thead><tbody id="rows"></tbody></table>
+<script type="module">
+const schema = {
+  type: "object",
+  properties: {
+    customer: { type: "string" },
+    kind: { type: "string", enum: ["credit", "payment"] },
+    amount: { type: "number" },
+    items: { type: "string" }
+  },
+  required: ["customer", "kind", "amount", "items"]
+};
+const system = `You turn one spoken shop ledger entry into JSON.
+customer: the customer's name as said.
+kind: "credit" when the customer took goods on credit (udhaar, credit, took, liya, le gaya); "payment" when they paid money back (paid, diya, jama, de gaya, returned).
+amount: the total in rupees as a number. Words like sau=100, hazaar=1000, pachaas=50, bees=20, dedh sau=150, dhai sau=250.
+items: short English list of goods, or "" for a payment.`;
+const cases = [
+  ["Ramesh 2 kilo atta 120 udhaar", { customer: "Ramesh", kind: "credit", amount: 120 }],
+  ["Sunita ne 500 rupaye jama kiye", { customer: "Sunita", kind: "payment", amount: 500 }],
+  ["Mohan bhai took one packet milk and bread, 85 on credit", { customer: "Mohan", kind: "credit", amount: 85 }],
+  ["Priya paid back 1200", { customer: "Priya", kind: "payment", amount: 1200 }],
+  ["Gupta ji do kilo chawal aur ek litre tel, teen sau bees", { customer: "Gupta", kind: "credit", amount: 320 }],
+  ["Asha aunty dedh sau de gayi", { customer: "Asha", kind: "payment", amount: 150 }],
+  ["Raju sugar 1 kg 48 rupees, udhaar likh do", { customer: "Raju", kind: "credit", amount: 48 }],
+  ["Farhan ne 2000 diye pichhla hisaab", { customer: "Farhan", kind: "payment", amount: 2000 }],
+  ["Kavita 3 Maggi 1 Parle G total 54 udhaar", { customer: "Kavita", kind: "credit", amount: 54 }],
+  ["Deepak dhai sau ka saaman le gaya", { customer: "Deepak", kind: "credit", amount: 250 }]
+];
+const opts = { expectedInputs: [{ type: "text", languages: ["en"] }], expectedOutputs: [{ type: "text", languages: ["en"] }] };
+const status = document.getElementById("status");
+async function refresh() {
+  if (typeof LanguageModel === "undefined") { status.textContent = "LanguageModel API missing in this browser."; return; }
+  status.textContent = "Model: " + await LanguageModel.availability(opts);
+}
+document.getElementById("dl").onclick = async () => {
+  status.textContent = "Starting download…";
+  try {
+    await LanguageModel.create({ ...opts, monitor(m) { m.addEventListener("downloadprogress", e => status.textContent = "Downloading " + Math.round(e.loaded * 100) + "%"); } });
+    status.textContent = "Model ready.";
+  } catch (e) { status.textContent = "Download failed: " + e; }
+};
+document.getElementById("run").onclick = async () => {
+  const rows = document.getElementById("rows"); rows.innerHTML = "";
+  let pass = 0;
+  for (const [said, exp] of cases) {
+    const s = await LanguageModel.create({ ...opts, initialPrompts: [{ role: "system", content: system }] });
+    const t = performance.now();
+    let got, ok = false;
+    try {
+      got = JSON.parse(await s.prompt(said, { responseConstraint: schema }));
+      ok = got.customer.toLowerCase().startsWith(exp.customer.toLowerCase()) && got.kind === exp.kind && got.amount === exp.amount;
+    } catch (e) { got = String(e); }
+    s.destroy();
+    if (ok) pass++;
+    rows.insertAdjacentHTML("beforeend", `<tr class="${ok ? "ok" : "bad"}"><td>${said}</td><td>${JSON.stringify(exp)}</td><td>${JSON.stringify(got)}</td><td>${Math.round(performance.now() - t)}</td></tr>`);
+  }
+  status.textContent = `Passed ${pass} of ${cases.length}`;
+  window.__spike = { pass, total: cases.length };
+};
+refresh();
+</script>
+</body>
+</html>
