@@ -1,7 +1,7 @@
 import { initializeApp, type FirebaseApp } from "firebase/app";
 import { initializeAppCheck, ReCaptchaEnterpriseProvider } from "firebase/app-check";
 import { getAI, getGenerativeModel, GoogleAIBackend, InferenceMode, Schema, ThinkingLevel, type GenerativeModel } from "firebase/ai";
-import { ENTRY_SYSTEM, entrySchema, needsCloud, normaliseEntry, type ParsedEntry } from "./parse";
+import { entrySystem, entrySchema, needsCloud, normaliseEntry, type ParsedEntry } from "./parse";
 import { normaliseNumbers } from "./numbers";
 import type { Source } from "./ledger";
 import type { LangCode } from "./locale";
@@ -15,7 +15,6 @@ const config = {
 };
 
 let app: FirebaseApp | null = null;
-let cloudModel: GenerativeModel | null = null;
 
 export function firebaseApp(): FirebaseApp {
   if (app) return app;
@@ -40,32 +39,34 @@ const cloudSchema = Schema.object({
   },
 });
 
-const ON_DEVICE_LANGS = new Set<LangCode>(["en", "es"]); // Gemini Nano in Chrome reads these; others use the cloud
+const LANG_NAMES: Record<LangCode, string> = { en: "English", es: "Spanish", hi: "Hinglish", sw: "Swahili", tl: "Tagalog" };
+// Gemini Nano in Chrome reads English and Spanish; Hinglish typed in Latin letters reads as English. Devanagari, Swahili and Tagalog use the cloud.
+const ON_DEVICE_LANGS = new Set<LangCode>(["en", "es", "hi"]);
 const hybridByLang = new Map<LangCode, GenerativeModel>();
 
 function ai() {
   return getAI(firebaseApp(), { backend: new GoogleAIBackend() });
 }
 
-const inCloudParams = {
+const cloudParams = (lang: LangCode) => ({
   model: "gemini-3.5-flash-lite",
-  systemInstruction: ENTRY_SYSTEM,
+  systemInstruction: entrySystem(LANG_NAMES[lang]),
   generationConfig: { responseMimeType: "application/json", responseSchema: cloudSchema, thinkingConfig: { thinkingLevel: ThinkingLevel.MINIMAL } },
-};
+});
 
 function hybridFor(lang: LangCode): GenerativeModel {
   let m = hybridByLang.get(lang);
   if (m) return m;
   // English and Spanish shops run on the device when Chrome has the model; the SDK falls back to the cloud when it does not.
-  const deviceLang = ON_DEVICE_LANGS.has(lang) ? lang : "en";
+  const deviceLang = lang === "es" ? "es" : "en";
   m = getGenerativeModel(ai(), {
     mode: ON_DEVICE_LANGS.has(lang) ? InferenceMode.PREFER_ON_DEVICE : InferenceMode.ONLY_IN_CLOUD,
-    inCloudParams,
+    inCloudParams: cloudParams(lang),
     onDeviceParams: {
       createOptions: {
         expectedInputs: [{ type: "text", languages: [deviceLang] }],
         expectedOutputs: [{ type: "text", languages: ["en"] }],
-        initialPrompts: [{ role: "system", content: [{ type: "text", value: ENTRY_SYSTEM }] }],
+        initialPrompts: [{ role: "system", content: [{ type: "text", value: entrySystem(LANG_NAMES[lang]) }] }],
       },
       promptOptions: { responseConstraint: entrySchema },
     },
@@ -74,9 +75,11 @@ function hybridFor(lang: LangCode): GenerativeModel {
   return m;
 }
 
-function cloudOnly(): GenerativeModel {
-  if (!cloudModel) cloudModel = getGenerativeModel(ai(), { mode: InferenceMode.ONLY_IN_CLOUD, inCloudParams });
-  return cloudModel;
+const cloudByLang = new Map<LangCode, GenerativeModel>();
+function cloudOnly(lang: LangCode): GenerativeModel {
+  let m = cloudByLang.get(lang);
+  if (!m) cloudByLang.set(lang, (m = getGenerativeModel(ai(), { mode: InferenceMode.ONLY_IN_CLOUD, inCloudParams: cloudParams(lang) })));
+  return m;
 }
 
 export const runsOnDevice = (lang: LangCode) => ON_DEVICE_LANGS.has(lang);
@@ -88,8 +91,10 @@ export interface Understood {
 }
 
 export async function understand(said: string, lang: LangCode): Promise<Understood> {
-  const model = needsCloud(said) ? cloudOnly() : hybridFor(lang);
-  const text = lang === "hi" ? normaliseNumbers(said) : said;
+  const model = needsCloud(said) ? cloudOnly(lang) : hybridFor(lang);
+  const spoken = lang === "hi" ? normaliseNumbers(said) : said;
+  // The system prompt names the shop's language, which stops answers in another one (an English entry once came back in Spanish).
+  const text = spoken;
   const t = performance.now();
   const res = await model.generateContent(text);
   const source: Source = res.response.inferenceSource === "on_device" ? "on_device" : "in_cloud";

@@ -103,7 +103,7 @@ export async function warmUp(shopLang = "en"): Promise<void> {
   const lm = (globalThis as unknown as { LanguageModel?: LM & { create(o: unknown): Promise<{ destroy(): void }> } }).LanguageModel;
   if (!lm) return;
   const configs = [OPTS];
-  if (shopLang !== "en") configs.push({ ...OPTS, expectedOutputs: [{ type: "text", languages: [shopLang] }] });
+  if (shopLang === "es") configs.push({ ...OPTS, expectedOutputs: [{ type: "text", languages: [shopLang] }] });
   for (const c of configs) {
     try {
       const s = await lm.create(c);

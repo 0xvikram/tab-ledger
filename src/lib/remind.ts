@@ -26,7 +26,7 @@ function model(lang: LangCode): GenerativeModel {
         onDeviceParams: {
           createOptions: {
             expectedInputs: [{ type: "text", languages: ["en"] }],
-            expectedOutputs: [{ type: "text", languages: [lang] }],
+            expectedOutputs: [{ type: "text", languages: [lang === "es" ? "es" : "en"] }],
           },
         },
       })

@@ -13,12 +13,25 @@ export const entrySchema = {
   required: ["customer", "kind", "amount", "items"],
 } as const;
 
-export const ENTRY_SYSTEM = `You turn one spoken shop credit-book entry into JSON. The shopkeeper may speak English, Spanish, Hindi or Hinglish, Swahili or Tagalog.
-customer: the customer's name as said, with any honorific (Doña, Aling, Mama, ji).
-kind: "credit" when the customer took goods without paying now (on credit, on my tab, fiado, udhaar, utang, deni, took, le gaya, se llevó, kinuha);
-      "payment" when the customer paid money back (paid, pagó, abonó, jama, diya, bayad, nagbayad, amelipa, alilipa).
-amount: the total money as a plain number, no currency sign. Convert number words to digits.
-items: a short list of the goods in the language that was spoken, or "" for a payment.`;
+// Per-language words for "credit" and "paid back". Keeping the prompt to one language makes the on-device model
+// about twice as fast, because Chrome re-reads the system prompt on every call.
+const WORDS: Record<string, { credit: string; payment: string }> = {
+  English: { credit: "on credit, on my tab, took, put it on the book", payment: "paid, paid back, gave, settled" },
+  Spanish: { credit: "fiado, se llevó, a cuenta, apúntalo", payment: "pagó, abonó, dio, liquidó" },
+  Hinglish: { credit: "udhaar, liya, le gaya, khate mein", payment: "jama, diya, de gaya, chuka diya" },
+  Swahili: { credit: "deni, amechukua, kwa mkopo", payment: "amelipa, alilipa, ametoa" },
+  Tagalog: { credit: "utang, kinuha, ilista", payment: "bayad, nagbayad, binayaran" },
+};
+
+export function entrySystem(language: string): string {
+  const w = WORDS[language] ?? WORDS.English;
+  return `Turn one spoken shop credit-book entry into JSON.
+customer: the customer's name as said, with any honorific.
+kind: "credit" if they took goods without paying (${w.credit}); "payment" if they paid money back (${w.payment}).
+amount: the total money as a plain number. Convert number words to digits.
+items: short list of goods in ${language}, or "" for a payment.`;
+}
+export const ENTRY_SYSTEM = entrySystem("English");
 
 export interface ParsedEntry {
   customer: string;
