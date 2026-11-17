@@ -122,3 +122,4 @@ button.chip { cursor: pointer; }
 .remind-foot { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: space-between; }
 .as-btn { display: inline-grid; place-items: center; text-decoration: none; }
 .gloss { margin: 0; font-size: 13px; color: var(--muted); border-left: 3px solid var(--line); padding-left: 8px; }
+.history .amt { grid-area: auto; }
