@@ -340,7 +340,7 @@ export default function Landing() {
       <section id="video" className="band">
         <div className="wrap narrow">
           <Reveal>
-            <p className="eyebrow">See it in two minutes</p>
+            <p className="eyebrow">See it in under three minutes</p>
             <h2>
               A week in a corner shop, <em>by voice.</em>
             </h2>
