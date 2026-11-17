@@ -1,13 +1,15 @@
 {
-  "name": "khata",
+  "name": "tab-ledger",
   "private": true,
-  "version": "0.0.0",
+  "version": "1.0.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "oxlint",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test": "vitest run",
+    "typecheck": "tsc -b"
   },
   "dependencies": {
     "firebase": "^13.3.0",
@@ -23,5 +25,7 @@
     "typescript": "~7.0.2",
     "vite": "^8.3.6",
     "vitest": "^5.1.0"
-  }
+  },
+  "license": "Apache-2.0",
+  "description": "Tab: the shop credit book you talk to. Firebase AI Logic hybrid inference (Gemini Nano on device, Gemini in the cloud)."
 }
