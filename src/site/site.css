@@ -40,20 +40,41 @@
 .hero { padding: 72px 0 40px; position: relative; }
 .hero::before { content: ""; position: absolute; inset: -20% -10% auto auto; width: 70%; height: 120%; background: radial-gradient(closest-side, rgba(158, 27, 27, 0.1), transparent 70%); pointer-events: none; }
 .hero-grid { display: grid; grid-template-columns: 1.05fr 0.95fr; gap: 56px; align-items: center; position: relative; }
-.hero-media { position: relative; display: grid; justify-items: center; }
+.hero-media { position: relative; display: grid; justify-items: center; padding-right: 8px; }
 .shot { width: 100%; height: auto; border-radius: 20px; border: 1px solid var(--line); box-shadow: 0 30px 60px -30px rgba(60, 30, 10, 0.35), 0 2px 6px rgba(60, 30, 10, 0.06); background: var(--card); }
 .shot.tilt { max-width: 440px; transform: rotate(1.5deg); }
 .spoken { position: relative; z-index: 2; justify-self: start; max-width: 380px; margin: 0 0 -26px -10px; padding: 14px 18px; border-radius: 18px 18px 18px 4px; background: var(--ink); color: #f7eedd; font-size: 15px; line-height: 1.45; box-shadow: 0 18px 30px -18px rgba(0, 0, 0, 0.5); display: flex; gap: 10px; }
 .mic-dot { flex: none; width: 10px; height: 10px; margin-top: 5px; border-radius: 50%; background: #ff7a6b; box-shadow: 0 0 0 0 rgba(255, 122, 107, 0.6); animation: ping 1.6s infinite; }
 @keyframes ping { 70% { box-shadow: 0 0 0 10px rgba(255, 122, 107, 0); } 100% { box-shadow: 0 0 0 0 rgba(255, 122, 107, 0); } }
-.badge-float { position: absolute; right: -6px; bottom: 34px; padding: 10px 14px; border-radius: 999px; background: var(--card); border: 1px solid var(--line); font-size: 14px; font-weight: 600; color: var(--green); box-shadow: 0 14px 26px -16px rgba(60, 30, 10, 0.4); display: flex; align-items: center; gap: 8px; }
+.badge-float { position: absolute; right: 0; top: 15%; white-space: nowrap; padding: 10px 14px; border-radius: 999px; background: var(--card); border: 1px solid var(--line); font-size: 14px; font-weight: 600; color: var(--green); box-shadow: 0 14px 26px -16px rgba(60, 30, 10, 0.4); display: flex; align-items: center; gap: 8px; }
 .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
 .dot.good { background: var(--green); }
 
-/* strip */
-.strip { border-block: 1px solid var(--line); background: var(--card); }
-.strip-row { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 30px; padding-block: 18px; color: var(--muted); font-size: 14px; }
-.strip-row b { color: var(--ink); font-weight: 600; }
+/* strip: built-on marquee */
+.strip { border-block: 1px solid var(--line); background: var(--card); position: relative; }
+.strip-inner { display: flex; align-items: center; max-width: none; }
+.strip-label { flex: none; padding: 0 22px 0 max(24px, calc((100vw - var(--max)) / 2 + 24px)); font: 600 12px/1 var(--sans); letter-spacing: 0.14em; text-transform: uppercase; color: var(--red); white-space: nowrap; position: relative; z-index: 2; background: var(--card); align-self: stretch; display: flex; align-items: center; box-shadow: 18px 0 18px -6px var(--card); }
+.marquee { flex: 1; min-width: 0; display: flex; overflow: hidden; padding-block: 18px; -webkit-mask-image: linear-gradient(90deg, transparent, #000 6%, #000 92%, transparent); mask-image: linear-gradient(90deg, transparent, #000 6%, #000 92%, transparent); }
+.marquee-track { flex: none; display: flex; gap: 14px; margin: 0; padding: 0 14px 0 0; list-style: none; animation: marquee 46s linear infinite; }
+.marquee:hover .marquee-track { animation-play-state: paused; }
+.marquee-track li { flex: none; display: inline-flex; align-items: center; gap: 10px; height: 46px; padding: 0 18px 0 8px; border-radius: 999px; border: 1px solid var(--line); background: var(--paper); white-space: nowrap; }
+.chip-ico { width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; font-size: 13px; line-height: 1; }
+.chip-ico.fire { background: color-mix(in srgb, var(--red) 12%, var(--card)); color: var(--red); }
+.chip-ico.device { background: color-mix(in srgb, var(--green) 14%, var(--card)); color: var(--green); }
+.chip-ico.cloud { background: color-mix(in srgb, var(--amber) 16%, var(--card)); color: var(--amber); }
+.chip-name { font-weight: 600; font-size: 15px; color: var(--ink); }
+.chip-role { font-size: 14px; color: var(--muted); }
+@keyframes marquee { from { transform: translateX(0); } to { transform: translateX(-100%); } }
+@media (prefers-reduced-motion: reduce) {
+  .marquee { flex-wrap: wrap; mask-image: none; -webkit-mask-image: none; }
+  .marquee-track { animation: none; flex-wrap: wrap; row-gap: 10px; }
+  .marquee-track[aria-hidden="true"] { display: none; }
+}
+@media (max-width: 600px) {
+  .strip-label { display: none; }
+  .marquee-track { animation-duration: 34s; }
+  .chip-role { display: none; }
+}
 
 /* sections */
 .band { padding: 104px 0; }
@@ -164,7 +185,7 @@
   .pair .shot:nth-child(2) { margin-top: 0; }
   .hide-sm { display: none; }
   .lede { font-size: 17px; }
-  .badge-float { right: 4px; bottom: 18px; font-size: 13px; }
+  .badge-float { right: 6px; top: 13%; font-size: 13px; }
   .spoken { margin-left: 0; }
   .btn { height: 48px; }
   .cta-row .btn { flex: 1 1 auto; }

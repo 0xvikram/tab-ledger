@@ -9,6 +9,17 @@ const COUNTRIES = [
   { word: "Deni", place: "Kenya & East Africa", line: "Credit at the neighbourhood duka." },
 ];
 
+const STACK = [
+  { name: "Firebase AI Logic", role: "hybrid inference", kind: "fire", icon: "◆" },
+  { name: "Gemini Nano", role: "in Chrome, on the device", kind: "device", icon: "●" },
+  { name: "Gemini 3.5 Flash-Lite", role: "in the cloud", kind: "cloud", icon: "◐" },
+  { name: "Cloud Firestore", role: "offline cache + rules", kind: "fire", icon: "▤" },
+  { name: "App Check", role: "reCAPTCHA Enterprise", kind: "fire", icon: "✓" },
+  { name: "Firebase Auth", role: "anonymous, no sign-up", kind: "fire", icon: "◎" },
+  { name: "Firebase Hosting", role: "global CDN", kind: "fire", icon: "▲" },
+  { name: "Chrome speech", role: "voice on the device", kind: "device", icon: "♪" },
+];
+
 const LANG_ROWS = [
   { lang: "English", where: "device", note: "about 4 s, free, works without signal" },
   { lang: "Spanish", where: "device", note: "about 4 s, free, works without signal" },
@@ -122,13 +133,23 @@ export default function Landing() {
       </section>
 
       <section className="strip" aria-label="Built with">
-        <div className="wrap strip-row">
-          <span>Built on</span>
-          <b>Firebase AI Logic</b>
-          <b>Gemini Nano in Chrome</b>
-          <b>Gemini</b>
-          <b>Cloud Firestore</b>
-          <b>App Check</b>
+        <div className="strip-inner">
+          <span className="strip-label">Built on</span>
+          <div className="marquee">
+            {[0, 1].map((copy) => (
+              <ul className="marquee-track" key={copy} aria-hidden={copy === 1}>
+                {STACK.map((t) => (
+                  <li key={t.name}>
+                    <span className={`chip-ico ${t.kind}`} aria-hidden>
+                      {t.icon}
+                    </span>
+                    <span className="chip-name">{t.name}</span>
+                    <span className="chip-role">{t.role}</span>
+                  </li>
+                ))}
+              </ul>
+            ))}
+          </div>
         </div>
       </section>
 
