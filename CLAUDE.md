@@ -50,3 +50,20 @@ Launch-ready, not a demo. Every state has an empty, loading, offline and error v
 - No secrets in the repo. Firebase web config is public by design; App Check debug tokens stay out of git.
 - Do not push, create the GitHub repo, deploy publicly or submit without Vikram.
 - Tests and typecheck pass before every commit.
+
+## Competitor research (17 Nov 2026, sources in the session report)
+
+Real products: Khatabook (100M+ Play installs, 13 languages, auto SMS/WhatsApp reminders, invoices), OkCredit (10M+, 11 Indian languages, offline, auto reminders, no voice), Vyapar (10M+, GST billing), KhataBhai (WhatsApp voice note or list photo, Hindi/English, phone signup; closest real match), VoiceKhata (voice in 10 Indian languages, Android), Treinta (10M+, Latin America), Libreta de Fiado (1M+, Mexico), DukaSale (Kenya, deni + M-Pesa). Philippines: no big utang app.
+Hack rivals: no other credit-ledger #BuildHybridAI entry; nearest HushLedger (on-device bill checker), FieldBrief, FormSathi. Crowded theme: privacy/PII redaction.
+Past Chrome AI winners: one concrete audience + a real reason for offline/on-device (AAC Board AI, Trail, Pet Shelter App, Mochi, Orma).
+
+| | Tab | Khatabook | OkCredit | KhataBhai | VoiceKhata | Treinta |
+|---|---|---|---|---|---|---|
+| Voice entry | yes | unclear | no | WhatsApp voice note | yes | not found |
+| Notebook photo import | yes, streamed | no | no | list photo | supplier bills | no |
+| AI on the device | yes (desktop Chrome) | no | no | no | no | no |
+| Reminders | drafted, never auto-sent | auto | auto/bulk | yes | one tap | not found |
+| Countries | many (khata/fiado/utang/deni) | India | India | India | India | LatAm |
+| Signup | none | account | account | phone | account | account |
+
+Gaps to close (approved plan 17 Nov): launch site; phone-first PWA; Google backup (link anonymous account); published accuracy number; Remote Config for routing; real offline clip; confirm Gemini Nano 4.

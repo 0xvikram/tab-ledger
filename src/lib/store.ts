@@ -61,3 +61,43 @@ export async function saveEntry(uid: string, e: Omit<Entry, "id">): Promise<void
 export async function removeEntry(uid: string, id: string): Promise<void> {
   void deleteDoc(doc(firestore(), "shops", uid, "entries", id));
 }
+
+// A book that lives only in memory, for the one-click judge demo at /app/demo. Nothing is written to Firestore.
+export interface Book {
+  watch(cb: (e: Entry[], pending: number) => void, onError: (e: Error) => void): () => void;
+  save(e: Omit<Entry, "id">): void;
+  remove(id: string): void;
+}
+
+export function firestoreBook(uid: string): Book {
+  return {
+    watch: (cb, onError) => watchEntries(uid, cb, onError),
+    save: (e) => void saveEntry(uid, e),
+    remove: (id) => void removeEntry(uid, id),
+  };
+}
+
+export function memoryBook(seed: Omit<Entry, "id">[]): Book {
+  let entries: Entry[] = seed.map((e, i) => ({ ...e, id: `demo-${i}` }));
+  const subs = new Set<(e: Entry[], p: number) => void>();
+  const emit = () => {
+    const sorted = [...entries].sort((a, b) => b.at - a.at);
+    subs.forEach((s) => s(sorted, 0));
+  };
+  let n = entries.length;
+  return {
+    watch(cb) {
+      subs.add(cb);
+      queueMicrotask(emit);
+      return () => void subs.delete(cb);
+    },
+    save(e) {
+      entries = [...entries, { ...e, id: `demo-${n++}` }];
+      emit();
+    },
+    remove(id) {
+      entries = entries.filter((e) => e.id !== id);
+      emit();
+    },
+  };
+}

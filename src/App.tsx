@@ -8,8 +8,10 @@ import { CURRENCIES, LANGS, guessShop, langOf, loadShop, storeShop, type Shop } 
 import { ParseError, type ParsedEntry } from "./lib/parse";
 import { preparePhoto, streamPage, type PageRead } from "./lib/page";
 import { draftReminder, oldestUnpaidDays, thisWeek, toEnglish, whatsappLink } from "./lib/remind";
-import { removeEntry, saveEntry, watchEntries, watchUser } from "./lib/store";
+import { firestoreBook, memoryBook, watchUser, type Book } from "./lib/store";
+import { demoSeed } from "./lib/demo";
 import "./App.css";
+import { Mark } from "./site/Chrome";
 
 interface Draft {
   said: string;
@@ -44,6 +46,14 @@ function useOnline() {
   return on;
 }
 
+const initials = (name: string) =>
+  name
+    .replace(/^(doña|don|mrs?|ms|mama|aling|mang)\.?\s+/i, "")
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((w) => w[0]?.toUpperCase() ?? "")
+    .join("");
+
 const when = (at: number) => {
   const d = new Date(at);
   const today = new Date();
@@ -53,28 +63,28 @@ const when = (at: number) => {
     : d.toLocaleDateString("en-IN", { day: "numeric", month: "short" });
 };
 
-export default function App() {
-  const [user, setUser] = useState<User | null | undefined>(undefined);
+export default function App({ demo = false }: { demo?: boolean }) {
+  const [user, setUser] = useState<User | null | undefined>(demo ? null : undefined);
   const [entries, setEntries] = useState<Entry[] | null>(null);
   const [pending, setPending] = useState(0);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [model, setModel] = useState<ModelState>("unavailable");
-  const [shop, setShop] = useState<Shop | null>(() => loadShop());
+  const [shop, setShop] = useState<Shop | null>(() => (demo ? { lang: "en", currency: "USD" } : loadShop()));
+  const book = useMemo<Book | null>(() => (demo ? memoryBook(demoSeed()) : user ? firestoreBook(user.uid) : null), [demo, user]);
   const [editingShop, setEditingShop] = useState(false);
   const online = useOnline();
 
-  useEffect(() => watchUser(setUser), []);
+  useEffect(() => (demo ? undefined : watchUser(setUser)), [demo]);
   useEffect(() => {
-    if (!user) return;
-    return watchEntries(
-      user.uid,
+    if (!book) return;
+    return book.watch(
       (e, p) => {
         setEntries(e);
         setPending(p);
       },
       () => setLoadError("Couldn't open your book. Check the connection and reload."),
     );
-  }, [user]);
+  }, [book]);
   useEffect(() => {
     modelState().then((m) => {
       setModel(m);
@@ -83,7 +93,7 @@ export default function App() {
     });
   }, [shop]);
 
-  if (user === null) return <Shell><p className="empty">Couldn't start. Check the connection and reload.</p></Shell>;
+  if (user === null && !demo) return <Shell><p className="empty">Couldn't start. Check the connection and reload.</p></Shell>;
 
   if (!shop || editingShop)
     return (
@@ -105,7 +115,12 @@ export default function App() {
     <ShopCtx.Provider value={shop}>
       <Shell online={online} pending={pending} model={model} onSettings={() => setEditingShop(true)}>
         {loadError ? <p className="banner error">{loadError}</p> : null}
-        <Ledger uid={user?.uid} entries={entries} model={model} online={online} />
+        {demo ? (
+          <p className="banner demo">
+            Demo book: a week in a small corner shop. Add entries, import the sample page, draft a reminder. Nothing here is saved. <a href="/app">Open your own book</a>
+          </p>
+        ) : null}
+        <Ledger book={book ?? undefined} entries={entries} model={model} online={online} demo={demo} />
       </Shell>
     </ShopCtx.Provider>
   );
@@ -117,10 +132,10 @@ function Shell({ children, online, pending = 0, model, onSettings }: { children:
   return (
     <div className="page">
       <header className="top">
-        <div className="mark">
-          <span className="seal" aria-hidden>T</span>
+        <a className="mark" href="/" aria-label="Tab home">
+          <Mark size={32} />
           <span>Tab</span>
-        </div>
+        </a>
         <div className="chips">
           {model ? (
             <span className={`chip ${onDevice ? "good" : ""}`} title="Gemini Nano runs inside Chrome on this device; the cloud covers what it cannot">
@@ -144,7 +159,8 @@ function Shell({ children, online, pending = 0, model, onSettings }: { children:
   );
 }
 
-function Ledger({ uid, entries, model, online }: { uid?: string; entries: Entry[] | null; model: ModelState; online: boolean }) {
+function Ledger({ book, entries, model, online, demo = false }: { book?: Book; entries: Entry[] | null; model: ModelState; online: boolean; demo?: boolean }) {
+  const uid = book ? "book" : undefined;
   const [draft, setDraft] = useState<Draft | null>(null);
   const [open, setOpen] = useState<CustomerBalance | null>(null);
   const [page, setPage] = useState<Blob | null>(null);
@@ -178,7 +194,7 @@ function Ledger({ uid, entries, model, online }: { uid?: string; entries: Entry[
           onClose={() => setPage(null)}
           onSave={(rows) => {
             const now = Date.now();
-            rows.forEach((r, i) => void saveEntry(uid, { ...r, at: now + i }));
+            rows.forEach((r, i) => book!.save({ ...r, at: now + i }));
             setPage(null);
           }}
         />
@@ -191,7 +207,7 @@ function Ledger({ uid, entries, model, online }: { uid?: string; entries: Entry[
           known={list}
           onCancel={() => setDraft(null)}
           onSave={(e) => {
-            void saveEntry(uid, e);
+            book!.save(e);
             setDraft(null);
           }}
         />
@@ -211,6 +227,7 @@ function Ledger({ uid, entries, model, online }: { uid?: string; entries: Entry[
             {list.map((b) => (
               <li key={b.key}>
                 <button className="row" onClick={() => setOpen(b)}>
+                  <span className="avatar" aria-hidden>{initials(b.name)}</span>
                   <span className="name">{b.name}</span>
                   <span className="when">{when(b.lastAt)}</span>
                   <span className={`amt ${b.owes > 0 ? "due" : b.owes < 0 ? "ahead" : "clear"}`}>
@@ -223,7 +240,9 @@ function Ledger({ uid, entries, model, online }: { uid?: string; entries: Entry[
         )}
       </section>
 
-      {share && entries && entries.length ? (
+      {demo ? (
+        <p className="footnote">The first ten entries are a sample week. Anything you add shows where it was read.</p>
+      ) : share && entries && entries.length ? (
         <p className="footnote">
           {share.on_device} of {entries.length} entries understood on this device, free and without internet.
           {share.in_cloud ? ` ${share.in_cloud} needed the cloud.` : ""}
@@ -235,7 +254,7 @@ function Ledger({ uid, entries, model, online }: { uid?: string; entries: Entry[
           who={open}
           entries={entries.filter((e) => (customerKey(e.customer) || e.customer) === open.key)}
           onClose={() => setOpen(null)}
-          onDelete={(id) => void removeEntry(uid, id)}
+          onDelete={(id) => book!.remove(id)}
         />
       ) : null}
     </>

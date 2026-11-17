@@ -1,0 +1,174 @@
+WEBVTT
+
+1
+00:00:10.286 --> 00:00:11.899
+In India it is the khata.
+
+2
+00:00:12.179 --> 00:00:13.809
+In Mexico, fiado.
+
+3
+00:00:14.089 --> 00:00:15.689
+In the Philippines, utang.
+
+4
+00:00:15.969 --> 00:00:17.230
+In Kenya, deni.
+
+5
+00:00:17.510 --> 00:00:22.792
+The book gets lost, the sums go wrong, and asking a regular customer for money is awkward.
+
+6
+00:00:28.299 --> 00:00:31.143
+A shopkeeper picks the language they speak in the shop,
+
+7
+00:00:31.143 --> 00:00:32.126
+and their currency.
+
+8
+00:00:32.406 --> 00:00:35.711
+The app is honest about which languages run on the device,
+
+9
+00:00:35.711 --> 00:00:37.078
+and which need a signal.
+
+10
+00:00:38.378 --> 00:00:39.470
+Then they just say it.
+
+11
+00:00:39.750 --> 00:00:42.795
+Maria took two loaves of bread and a carton of milk,
+
+12
+00:00:42.795 --> 00:00:44.142
+six dollars, on credit.
+
+13
+00:00:44.422 --> 00:00:48.633
+Gemini Nano, running inside Chrome, turns that into a clean entry.
+
+14
+00:00:48.913 --> 00:00:50.523
+No server, and no cost.
+
+15
+00:00:50.803 --> 00:00:53.214
+The card shows exactly where it was understood.
+
+16
+00:00:54.514 --> 00:00:55.789
+Tab adds it all up.
+
+17
+00:00:56.069 --> 00:00:58.560
+Who owes you, how much, and what came in this week.
+
+18
+00:00:58.840 --> 00:01:01.547
+Every entry in this book was read on this device.
+
+19
+00:01:02.847 --> 00:01:04.740
+Same app, a shop in Mexico.
+
+20
+00:01:05.020 --> 00:01:06.864
+Spanish is read on the device too.
+
+21
+00:01:07.144 --> 00:01:10.629
+And an English line underneath means anyone can check the entry.
+
+22
+00:01:11.929 --> 00:01:13.900
+A shop in Nairobi speaks Swahili.
+
+23
+00:01:14.180 --> 00:01:20.581
+Chrome's on-device model cannot read Swahili yet, so Firebase AI Logic sends it to Gemini in
+
+24
+00:01:20.581 --> 00:01:21.277
+the cloud.
+
+25
+00:01:21.557 --> 00:01:22.433
+Same card.
+
+26
+00:01:22.713 --> 00:01:23.938
+In under three seconds.
+
+27
+00:01:25.238 --> 00:01:27.309
+Most shops already have years of paper.
+
+28
+00:01:27.589 --> 00:01:29.072
+Take a photo of a page.
+
+29
+00:01:29.352 --> 00:01:33.004
+Tab reads it on the device, line by line, free and private.
+
+30
+00:01:33.284 --> 00:01:35.777
+A crossed-out line is one tap to leave out.
+
+31
+00:01:36.057 --> 00:01:39.044
+Or read the page in the cloud, in about three seconds.
+
+32
+00:01:40.344 --> 00:01:44.931
+When it is time to collect, Tab drafts a polite reminder in the shop's own language.
+
+33
+00:01:45.211 --> 00:01:46.658
+Tab never sends anything.
+
+34
+00:01:46.938 --> 00:01:48.379
+The shopkeeper decides.
+
+35
+00:01:49.679 --> 00:01:51.059
+And no signal is fine.
+
+36
+00:01:51.339 --> 00:01:55.173
+Entries save straight to the device with Firestore's offline cache,
+
+37
+00:01:55.173 --> 00:01:57.291
+and sync when the network comes back.
+
+38
+00:01:58.591 --> 00:01:59.431
+Under the hood.
+
+39
+00:01:59.711 --> 00:02:03.879
+Firebase AI Logic with hybrid inference: on the device first,
+
+40
+00:02:03.879 --> 00:02:05.587
+the cloud when it has to.
+
+41
+00:02:05.867 --> 00:02:07.603
+App Check on every AI call.
+
+42
+00:02:07.883 --> 00:02:10.620
+Anonymous sign-in, so there is no account to make.
+
+43
+00:02:10.900 --> 00:02:13.810
+And security rules keep every shop's book private.
+
