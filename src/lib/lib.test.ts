@@ -22,6 +22,7 @@ describe("money", () => {
   it("formats rupees the Indian way", () => {
     expect(formatMoney(toMinor(125000), "INR")).toBe("₹1,25,000");
     expect(formatMoney(toMinor(60), "MXN", "es-MX")).toBe("$60");
+    expect(formatMoney(toMinor(43.5), "USD", "en-US")).toBe("$43.50");
   });
 });
 
