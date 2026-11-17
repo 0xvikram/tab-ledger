@@ -98,13 +98,18 @@ export function listen(
 }
 
 // Loads Gemini Nano into memory once so the first real entry is fast (first load can take ~8 s).
-export async function warmUp(): Promise<void> {
+// Also loads output in the shop's language (Spanish reminders were 33 s cold, 3 s warm).
+export async function warmUp(shopLang = "en"): Promise<void> {
   const lm = (globalThis as unknown as { LanguageModel?: LM & { create(o: unknown): Promise<{ destroy(): void }> } }).LanguageModel;
   if (!lm) return;
-  try {
-    const s = await lm.create(OPTS);
-    s.destroy();
-  } catch {
-    /* model not ready; the cloud covers it */
+  const configs = [OPTS];
+  if (shopLang !== "en") configs.push({ ...OPTS, expectedOutputs: [{ type: "text", languages: [shopLang] }] });
+  for (const c of configs) {
+    try {
+      const s = await lm.create(c);
+      s.destroy();
+    } catch {
+      /* not ready for this language; the cloud covers it */
+    }
   }
 }

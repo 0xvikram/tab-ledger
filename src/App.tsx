@@ -7,6 +7,7 @@ import { formatMoney, toMinor } from "./lib/money";
 import { CURRENCIES, LANGS, guessShop, langOf, loadShop, storeShop, type Shop } from "./lib/locale";
 import { ParseError, type ParsedEntry } from "./lib/parse";
 import { preparePhoto, streamPage, type PageRead } from "./lib/page";
+import { draftReminder, oldestUnpaidDays, thisWeek, toEnglish, whatsappLink } from "./lib/remind";
 import { removeEntry, saveEntry, watchEntries, watchUser } from "./lib/store";
 import "./App.css";
 
@@ -77,9 +78,10 @@ export default function App() {
   useEffect(() => {
     modelState().then((m) => {
       setModel(m);
-      if (m === "ready") void warmUp();
+      if (m === "ready" && shop && runsOnDevice(shop.lang)) void warmUp(shop.lang);
+      else if (m === "ready") void warmUp();
     });
-  }, []);
+  }, [shop]);
 
   if (user === null) return <Shell><p className="empty">Couldn't start. Check the connection and reload.</p></Shell>;
 
@@ -151,6 +153,7 @@ function Ledger({ uid, entries, model, online }: { uid?: string; entries: Entry[
   const owing = list.filter((b) => b.owes > 0).length;
   const share = entries ? sourceShare(entries) : null;
   const money = useMoney();
+  const week = entries ? thisWeek(entries) : null;
 
   return (
     <>
@@ -158,6 +161,11 @@ function Ledger({ uid, entries, model, online }: { uid?: string; entries: Entry[
         <p className="label">Customers owe you</p>
         <p className="total">{entries ? money(owed) : "…"}</p>
         <p className="sub">{entries ? (owing ? `${owing} ${owing === 1 ? "person" : "people"} on credit` : "Nobody owes you right now") : "Opening your book"}</p>
+        {week && (week.given || week.collected) ? (
+          <p className="week">
+            This week: <b>{money(week.given)}</b> given on credit · <b>{money(week.collected)}</b> collected
+          </p>
+        ) : null}
       </section>
 
       <Composer disabled={!uid} model={model} online={online} onDraft={setDraft} onPage={setPage} />
@@ -510,6 +518,7 @@ function Confirm({ draft, known, onCancel, onSave }: { draft: Draft; known: Cust
   return (
     <section className="confirm" aria-label="Check the entry">
       <p className="said">“{d.said}”</p>
+      <InEnglish text={d.said} />
       {d.note ? <p className="banner">{d.note}</p> : null}
       <div className="fields">
         <label>
@@ -586,6 +595,7 @@ function Customer({ who, entries, onClose, onDelete }: { who: CustomerBalance; e
           </div>
           <button className="ghost" onClick={onClose} aria-label="Close">Close</button>
         </header>
+        {who.owes > 0 ? <Reminder who={who} entries={entries} /> : null}
         <ul className="history">
           {entries.map((e) => (
             <li key={e.id}>
@@ -654,4 +664,94 @@ function ShopSetup({ initial, firstRun, currencyLocked, onDone }: { initial: Sho
       </button>
     </section>
   );
+}
+
+function Reminder({ who, entries }: { who: CustomerBalance; entries: Entry[] }) {
+  const shop = useShop();
+  const money = useMoney();
+  const [state, setState] = useState<"idle" | "busy" | "done" | "error">("idle");
+  const [text, setText] = useState("");
+  const [meta, setMeta] = useState("");
+  const [copied, setCopied] = useState(false);
+  const days = oldestUnpaidDays(entries);
+
+  async function draft() {
+    setState("busy");
+    setCopied(false);
+    try {
+      const r = await draftReminder({
+        name: who.name,
+        owes: money(who.owes),
+        items: entries.filter((e) => e.kind === "credit" && e.items).map((e) => e.items),
+        days,
+        lang: shop.lang,
+      });
+      setText(r.text);
+      setMeta(r.source === "on_device" ? `Written on this device · ${(r.ms / 1000).toFixed(1)} s · free` : `Written in the cloud · ${(r.ms / 1000).toFixed(1)} s`);
+      setState("done");
+    } catch {
+      setState("error");
+    }
+  }
+
+  return (
+    <div className="remind">
+      {state === "idle" || state === "error" ? (
+        <>
+          <button className="ghost" onClick={draft}>Draft a polite reminder</button>
+          <span className="muted small">{days ? `Oldest unpaid: ${days} ${days === 1 ? "day" : "days"} ago` : "Unpaid since today"}</span>
+          {state === "error" ? <p className="banner error">Couldn't write a draft right now. Try again in a moment.</p> : null}
+        </>
+      ) : state === "busy" ? (
+        <p className="muted">Writing a short, friendly note…</p>
+      ) : (
+        <>
+          <textarea value={text} onChange={(e) => setText(e.target.value)} rows={3} aria-label="Reminder message" />
+          <InEnglish text={text} />
+          <div className="remind-foot">
+            <span className="source on_device">{meta}</span>
+            <div className="actions">
+              <button
+                className="ghost"
+                onClick={async () => {
+                  try {
+                    await navigator.clipboard.writeText(text);
+                    setCopied(true);
+                  } catch {
+                    setCopied(false);
+                  }
+                }}
+              >
+                {copied ? "Copied" : "Copy"}
+              </button>
+              <a className="primary as-btn" href={whatsappLink(text)} target="_blank" rel="noreferrer">
+                Open in WhatsApp
+              </a>
+            </div>
+          </div>
+          <p className="muted small">Tab never sends anything. You choose who gets this.</p>
+        </>
+      )}
+    </div>
+  );
+}
+
+function InEnglish({ text }: { text: string }) {
+  const { lang } = useShop();
+  const [gloss, setGloss] = useState<string | null>(null);
+  useEffect(() => {
+    if (lang === "en" || !text.trim() || !navigator.onLine) return;
+    let live = true;
+    const t = setTimeout(() => {
+      toEnglish(text)
+        .then((g) => live && setGloss(g))
+        .catch(() => undefined);
+    }, 400);
+    return () => {
+      live = false;
+      clearTimeout(t);
+    };
+  }, [text, lang]);
+  if (lang === "en" || !gloss) return null;
+  return <p className="gloss">In English: {gloss}</p>;
 }

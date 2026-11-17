@@ -113,3 +113,12 @@ button.chip { cursor: pointer; }
 .found .amt { grid-area: amt; }
 .import-actions { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; margin-top: 12px; }
 @media (min-width: 640px) { .import-body { grid-template-columns: 220px 1fr; } .import-body img { max-height: 420px; } }
+
+.hero .week { margin: 12px 0 0; padding-top: 10px; border-top: 1px solid rgba(255, 230, 180, 0.3); font-size: 13px; opacity: 0.92; }
+.hero .week b { font-weight: 700; }
+.remind { margin-top: 12px; padding: 12px; border-radius: 12px; background: var(--paper); display: grid; gap: 8px; }
+.remind > .ghost { justify-self: start; }
+.remind textarea { width: 100%; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--line); background: var(--card); color: var(--ink); font: inherit; resize: vertical; }
+.remind-foot { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: space-between; }
+.as-btn { display: inline-grid; place-items: center; text-decoration: none; }
+.gloss { margin: 0; font-size: 13px; color: var(--muted); border-left: 3px solid var(--line); padding-left: 8px; }

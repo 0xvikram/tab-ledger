@@ -128,3 +128,22 @@ describe("streamed page rows", () => {
     expect(completeObjects('[{"customer":"Don \\"Chuy\\"","kind":"credit","amount":4,"items":""}]')).toHaveLength(1);
   });
 });
+
+import { cleanReminder, oldestUnpaidDays, thisWeek } from "./remind";
+
+describe("reminders and the week", () => {
+  const day = 86_400_000;
+  const now = 100 * day;
+  it("finds the oldest credit still unpaid, oldest paid first", () => {
+    const es = [e("A", "credit", 50, now - 10 * day), e("A", "credit", 30, now - 3 * day), e("A", "payment", 50, now - 1 * day)];
+    expect(oldestUnpaidDays(es, now)).toBe(3);
+    expect(oldestUnpaidDays([...es, e("A", "payment", 30, now)], now)).toBe(0);
+  });
+  it("sums this week's credit and collections", () => {
+    const w = thisWeek([e("A", "credit", 50, now - 2 * day), e("A", "payment", 20, now - 1 * day), e("B", "credit", 10, now - 30 * day)], now);
+    expect(w).toEqual({ given: 5000, collected: 2000, newCustomers: 1 });
+  });
+  it("strips quotes the model adds", () => {
+    expect(cleanReminder(' "Hola Lupe, ..." ')).toBe("Hola Lupe, ...");
+  });
+});
